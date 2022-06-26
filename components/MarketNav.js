@@ -65,7 +65,7 @@ const MarketNav = () => {
       const contract = new ethers.Contract(CONTRACT_ADDRESS_NONI, Noni.abi, signer);
 
       const noniCount = await contract.getNumberOfNonis()
-      setNoniCount(noniCount.toNumber()+1)
+      setNoniCount(noniCount.toNumber())
     }
     getNoniCount()
   },[])
