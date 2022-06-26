@@ -2,7 +2,7 @@
 import { ethers } from "ethers"
 import { useEffect, useState } from "react"
 import Feedback from "../lib/contracts/Feedback.json"
-import { CONTRACT_ADDRESS } from "../lib/constants"
+import { CONTRACT_ADDRESS_FEEDBACK } from "../lib/constants"
 import toast from "react-hot-toast"
 const DashBoard = () => {
 
@@ -18,7 +18,7 @@ const DashBoard = () => {
             if (chain == "0x4") {              
                 const provider = new ethers.providers.Web3Provider(ethereum);
                 const signer = provider.getSigner();
-                const contract = new ethers.Contract(CONTRACT_ADDRESS, Feedback.abi, signer);
+                const contract = new ethers.Contract(CONTRACT_ADDRESS_FEEDBACK, Feedback.abi, signer);
                 
                 console.log(contract)
                 const feedback = await contract.getFeedBack()

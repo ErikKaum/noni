@@ -1,30 +1,57 @@
 import Link from "next/link"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useContext } from "react"
+import { userContext, agentContext } from "../lib/context"
+
+import { ethers } from "ethers";
+
+import { CONTRACT_ADDRESS_NONI } from "../lib/constants";
+import Noni from "../lib/contracts/Noni.json"
 
 
 const Nonis = () => {
 
   const [nonis, setNonis] = useState([])
+  const { account, setAccount } = useContext(userContext)
+  const { agent, setAgent} = useContext(agentContext)
 
   useEffect(() => {
     
     const getNonis = async () => {
+      const { ethereum } = window
+
+      const provider = new ethers.providers.Web3Provider(ethereum);
+      const signer = provider.getSigner();
+      const contract = new ethers.Contract(CONTRACT_ADDRESS_NONI, Noni.abi, signer);
+      
+      const noniArray = []
+
+      const balance = await contract.balanceOf(account)
+      for (let i = 0; i < balance; i++) {
+        const tokenId = await contract.tokenOfOwnerByIndex(account, i);
+        const uri = await contract.tokenURI(tokenId.toNumber())
         
-      const noni = {
-        tokenId: 0,
-        name: "0xNoni0",
-        elo : 400,
-        image: "imageURI",
-        contentID: "contentID",
+        const json = window.atob(uri.substring(29));
+        const result = JSON.parse(json);
+        
+        const noni = {
+          tokenId: tokenId.toNumber(),
+          name: result.name,
+          elo : result.elo,
+          image: result.imageURI,
+          contentID: result.contentID,
+        } 
+        noniArray.push(noni)
       }
-      const noniArray = [noni, noni, noni, noni, noni]
+
       setNonis(noniArray)
     }
 
     getNonis()
-  },[])
+  },[account])
 
+
+  console.log(nonis)
 
   return(
     <div className="w-3/4 ml-[calc(25%)] h-full flex flex-col justify-start items-center">
@@ -74,7 +101,7 @@ const Nonis = () => {
             return(
             <div key={noni.name} className="flex flex-col">
               <div className="flex w-56 h-56 border-2 border-black p-2 mb-2 bg-slate-100">
-                {/* HERE COMES THE IMG */}
+                <img src={noni.image} alt={noni.name} />              
               </div>
 
               <div className="flex flex-col mb-5">
@@ -87,7 +114,7 @@ const Nonis = () => {
                   List for sale
                 </button>
 
-                <button className="border border-black-2 hover:opacity-60">
+                <button onClick={() => setAgent(noni)} className="border border-black-2 hover:opacity-60">
                   Activate
                 </button>
  
@@ -107,4 +134,3 @@ const Nonis = () => {
 }
 
 export default Nonis
-
