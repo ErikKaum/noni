@@ -4,12 +4,17 @@ import { ethers } from "ethers"
 import { useContext, useEffect, useState } from "react"
 import { Toaster, toast } from "react-hot-toast"
 
+import { bufferToHex } from 'ethereumjs-util'
+import { encrypt } from '@metamask/eth-sig-util';
+
+import { create } from 'ipfs-http-client'
+
 import { userContext } from "../lib/context"
 
 import { CONTRACT_ADDRESS_NONI } from "../lib/constants";
 import Noni from "../lib/contracts/Noni.json"
 
-const MarketNav = () => {
+const Nav = () => {
 
   const [noniCount, setNoniCount] = useState(0)
   const { account, setAccount } = useContext(userContext)
@@ -43,15 +48,48 @@ const MarketNav = () => {
     }
   }
 
+  // This WILL need refactoring some day
+  const encryptNoni = async() => {
+    // fetch the json from the default AI
+    const res = await fetch(`https://gateway.pinata.cloud/ipfs/QmNQ1ABiGJ9fv9wzxf1k1eKbc8nvXBQw7VnQSNedeRwwfo`)
+    const data = await res.json()
+    
+    // encyrpt the data with the metamask key
+    const encryptionPublicKey =  await ethereum.request({
+      method: 'eth_getEncryptionPublicKey',
+      params: [account], // you must have access to the specified account
+    })
+
+    const encryptedMessage = bufferToHex(
+      Buffer.from(
+        JSON.stringify(
+          encrypt({
+            publicKey: encryptionPublicKey,
+            data: JSON.stringify(data),
+            version: 'x25519-xsalsa20-poly1305',
+          })
+        ),
+        'utf8'
+      )
+    );
+
+    // load the encypted data to IPFS
+    const client = create('https://ipfs.infura.io:5001/api/v0')
+    const added = await client.add(JSON.stringify(encryptedMessage))
+    const cid = added.path 
+
+    return cid
+
+  }
+
   const mintNoni = async() => {
     const { ethereum } = window
 
     const provider = new ethers.providers.Web3Provider(ethereum);
     const signer = provider.getSigner();
     const contract = new ethers.Contract(CONTRACT_ADDRESS_NONI, Noni.abi, signer);
-
-    // For now just use the default json cid
-    const cid = "QmNQ1ABiGJ9fv9wzxf1k1eKbc8nvXBQw7VnQSNedeRwwfo"
+    
+    const cid = await encryptNoni()
     console.log(cid)
     await contract.safeMint(cid)
   }
@@ -118,4 +156,4 @@ const MarketNav = () => {
   )
 }
 
-export default MarketNav
+export default Nav
