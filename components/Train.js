@@ -28,7 +28,7 @@ const Train = () => {
 
         <Game/>
 
-        <div className="flex mt-10">
+        <div className="flex flex-col mt-10">
           {/* If agent is choses */}
           {agent &&
           <>
