@@ -1,3 +1,5 @@
+import Link from "next/link"
+
 import { ethers } from "ethers"
 import { useContext } from "react"
 import { Toaster, toast } from "react-hot-toast"
@@ -71,11 +73,14 @@ const Nav = ({setPage}) => {
 
       <button onClick={() => setPage("nonis")} className="border-2 border-black w-full text-lg font-medium py-2 bg-noni-pink hover:bg-noni-lb ">
         MY NONIS
-      </button>  
-    
-      <button onClick={() => setPage("etc")} className="border-2 border-black w-full text-lg font-medium py-2 bg-noni-pink hover:bg-noni-lb ">
-        ETC.
       </button>
+
+      <Link href={"/market-place"} passHref>
+        <button className="border-2 border-black w-full text-lg font-medium py-2 bg-noni-pink hover:bg-noni-lb ">
+          MARKET PLACE
+        </button>
+      </Link>
+
     </div>
 
     <div className="flex w-3/5">
