@@ -73,7 +73,11 @@ const MainMarket = () => {
       }
       setNonis(noniArray)
     }
-    getNonis()
+    
+    if (account) {
+      getNonis()
+    }
+
   },[account])
 
   return(
@@ -83,6 +87,12 @@ const MainMarket = () => {
         <h1 className="text-4xl font-bold">MARKET PLACE</h1>
       </div>
       
+      {!account && 
+        <h1 className="text-4xl font-bold">Wallet is not connected 🤷</h1>
+      }
+
+      {account &&
+      <>
       <div className="flex mb-10">
         <p className="text-xl font-medium">The place to buy and sell Nonis</p>
       </div>
@@ -121,6 +131,8 @@ const MainMarket = () => {
       </div>
 
     </div>
+    </>
+    }
     </div>
 
     )
