@@ -105,8 +105,12 @@ const Nav = () => {
       const noniCount = await contract.getNumberOfNonis()
       setNoniCount(noniCount.toNumber())
     }
+    
+    if (account) {
     getNoniCount()
-  },[])
+    }
+
+  },[account])
   
   const Text = () => {
     if (account) {
