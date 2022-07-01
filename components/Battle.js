@@ -9,7 +9,7 @@ const Battle = () => {
           <h1 className="text-4xl font-bold">BATTLE</h1>
         </div>
 
-        <Game/>
+        <h1 className="text-3xl font-bold">Coming soon 👀</h1>
       </div>
     )
 }

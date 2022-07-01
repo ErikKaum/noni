@@ -26,24 +26,34 @@ const Train = () => {
           <h1 className="text-4xl font-bold">TRAIN</h1>
         </div>
 
-        <Game/>
+        {agent &&
+        <div className="flex w-full justify-center space-x-5">
+          <Game/>
+          <div className="flex flex-col w-1/3 items-center justify-around">
 
-        <div className="flex flex-col mt-10">
-          {/* If agent is choses */}
-          {agent &&
-          <>
-            <p>You are training with {agent.name}</p>
-            <button onClick={getNeuralNetwork}>
-              View encrypted message
-            </button>
-          </>
-          }
+              <div className="flex flex-col items-center"> 
+                <h2 className="text-xl font-semibold">GAME stats</h2>
+                <p>Your (not yet) are playing with: {agent.name}</p>
+              </div>
 
-          {/* If agent object is empty */}
-          {!agent && 
-          <p>Activate agent from My Nonis</p>
-          }
+              <div className="flex flex-col items-center">
+                <h2 className="text-xl font-semibold">How to play?</h2>
+                <p>Click the squares to play Tic Tac Toe.</p>
+                <p>Currently you play against yourself 😆 BUT</p>  
+                <p>in the future you&apos;ll play against your Noni!</p>  
+              </div>
+            </div>
         </div>
+        }
+        
+        {!agent &&
+        <div className="flex flex-col w-full items-center"> 
+          <h2 className="text-4xl font-semibold">Activate Noni from My Nonis</h2>
+          <p className="text-4xl">👈</p>
+        </div>
+        }
+
+
       </div>
 
       
