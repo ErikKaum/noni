@@ -12,12 +12,51 @@ import { bufferToHex } from 'ethereumjs-util'
 import { encrypt } from '@metamask/eth-sig-util';
 import { create } from 'ipfs-http-client'
 
+import { loadLayersModel, io } from "@tensorflow/tfjs";
+
+
 const Nonis = () => {
 
   const [nonis, setNonis] = useState([])
   const [nonisForSale, setNonisForSale] = useState([])
   const { account, setAccount } = useContext(userContext)
   const { agent, setAgent} = useContext(agentContext)
+
+  const base64ToArrayBuffer = (base64) => {
+    const len = base64.length;
+    const bytes = new Uint8Array(len);
+    for (var i = 0; i < len; i++) {
+        bytes[i] = base64.charCodeAt(i);
+    }
+    return bytes.buffer;
+  }
+
+
+  const makeNoniActive = async(noni) => {
+
+    console.log(`https://gateway.pinata.cloud/ipfs/${noni.modelID}`)
+
+    const resModel = await fetch(`https://gateway.pinata.cloud/ipfs/${noni.modelID}`) 
+    const dataModel = await resModel.json()
+
+    const resWeights = await fetch(`https://gateway.pinata.cloud/ipfs/${noni.weightsID}`) 
+    const dataWeights = await resWeights.json()
+
+    let decryptedModel  = await ethereum.request({method: 'eth_decrypt', params: [dataModel, account]})
+
+    let decryptedWeights  = await ethereum.request({method: 'eth_decrypt', params: [dataWeights, account]})
+    decryptedWeights = base64ToArrayBuffer(decryptedWeights)
+
+    const modelFile = new File([decryptedModel], "model.json")
+    const weightFile = new File([decryptedWeights], "weights.bin")
+
+
+    const model = await loadLayersModel(io.browserFiles(
+      [modelFile, weightFile]));
+
+    noni.model = model
+    setAgent(noni)
+  }
 
   const changeSaleState = async (tokenId, state) => {
     const { ethereum } = window
@@ -27,7 +66,6 @@ const Nonis = () => {
     const contract = new ethers.Contract(CONTRACT_ADDRESS_NONI, Noni.abi, signer);
 
     contract.setSaleState(tokenId, state)
-    console.log("lol")
   }
 
   const arrayBufferToBase64 = (buffer) => {
@@ -40,6 +78,7 @@ const Nonis = () => {
     return window.btoa( binary );
   }
 
+  // NEEDS TO BE REWRITTEN
   const encryptForBuyer = async (to, cid) => {
     console.log('old cid', cid)
     console.log(`ipfs://${cid}`)
@@ -131,9 +170,11 @@ const Nonis = () => {
           name: result.name,
           elo : result.elo,
           image: result.imageURI,
-          contentID: result.contentID,
+          modelID: result.modelID,
+          weightsID: result.weightsID,
           forSale: result.forSale,
-          bids : bidArray
+          bids : bidArray,
+          model : null
         }
         if (noni.forSale == 0) {
           noniArray.push(noni)
@@ -211,7 +252,7 @@ const Nonis = () => {
                   List for sale
                 </button>
 
-                <button onClick={() => setAgent(noni)} className="p-1 border border-black-2 hover:opacity-60">
+                <button onClick={() => makeNoniActive(noni)} className="p-1 border border-black-2 hover:opacity-60">
                   Activate
                 </button>
  
@@ -249,7 +290,7 @@ const Nonis = () => {
                   Delist from sale
                 </button>
 
-                <button onClick={() => setAgent(noni)} className="p-1 border border-black-2 hover:opacity-60">
+                <button onClick={() => makeNoniActive(noni)} className="p-1 border border-black-2 hover:opacity-60">
                   Activate
                 </button> 
               </div>

@@ -48,11 +48,25 @@ const Nav = () => {
     }
   }
 
+  const arrayBufferToBase64 = (buffer) => {
+    const binary = '';
+    const bytes = new Uint8Array( buffer );
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode( bytes[ i ] );
+    }
+    return window.btoa( binary );
+  }
+
   // This WILL need refactoring some day
   const encryptNoni = async() => {
     // fetch the json from the default AI
-    const res = await fetch(`https://gateway.pinata.cloud/ipfs/QmNQ1ABiGJ9fv9wzxf1k1eKbc8nvXBQw7VnQSNedeRwwfo`)
-    const data = await res.json()
+    const resModel = await fetch(`https://gateway.pinata.cloud/ipfs/QmViWtU3oUCYq7XUzABU8jzYZjGQuG1z3a3W5DiZrNYRy9`)
+    const dataModel = await resModel.json()
+
+    const resWeights = await fetch(`https://gateway.pinata.cloud/ipfs/QmYE3fpyJkf4Z2Jit96VPvoMTkKT5ANYHNENdrh66bkm4N`)
+    const dataWeights = await resWeights.arrayBuffer()
+    const weightsBase64 = arrayBufferToBase64(dataWeights)
     
     // encyrpt the data with the metamask key
     const encryptionPublicKey =  await ethereum.request({
@@ -60,12 +74,25 @@ const Nav = () => {
       params: [account], // you must have access to the specified account
     })
 
-    const encryptedMessage = bufferToHex(
+    const encryptedModel = bufferToHex(
       Buffer.from(
         JSON.stringify(
           encrypt({
             publicKey: encryptionPublicKey,
-            data: JSON.stringify(data),
+            data: JSON.stringify(dataModel),
+            version: 'x25519-xsalsa20-poly1305',
+          })
+        ),
+        'utf8'
+      )
+    );
+
+    const encryptedWeights = bufferToHex(
+      Buffer.from(
+        JSON.stringify(
+          encrypt({
+            publicKey: encryptionPublicKey,
+            data: JSON.stringify(weightsBase64),
             version: 'x25519-xsalsa20-poly1305',
           })
         ),
@@ -75,10 +102,13 @@ const Nav = () => {
 
     // load the encypted data to IPFS
     const client = create('https://ipfs.infura.io:5001/api/v0')
-    const added = await client.add(JSON.stringify(encryptedMessage))
-    const cid = added.path 
+    const modelAdded = await client.add(JSON.stringify(encryptedModel))
+    const modelCid = modelAdded.path
+    
+    const weightsAdded = await client.add(JSON.stringify(encryptedWeights))
+    const weightsCid = weightsAdded.path 
 
-    return cid
+    return { modelCid, weightsCid }
 
   }
 
@@ -89,9 +119,9 @@ const Nav = () => {
     const signer = provider.getSigner();
     const contract = new ethers.Contract(CONTRACT_ADDRESS_NONI, Noni.abi, signer);
     
-    const cid = await encryptNoni()
-    console.log(cid)
-    await contract.safeMint(cid)
+    const { modelCid, weightsCid } = await encryptNoni()
+    console.log(modelCid, weightsCid)
+    await contract.safeMint(modelCid, weightsCid)
   }
 
   useEffect(() => {
