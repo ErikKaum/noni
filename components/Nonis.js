@@ -20,6 +20,7 @@ const Nonis = () => {
 
   const [nonis, setNonis] = useState([])
   const [nonisForSale, setNonisForSale] = useState([])
+  const [activating, setActivating] = useState(false)
   const { account, setAccount } = useContext(userContext)
   const { agent, setAgent} = useContext(agentContext)
 
@@ -33,6 +34,7 @@ const Nonis = () => {
   }
 
   const makeNoniActive = async(noni) => {
+    setActivating(true)
     toast('Wait a minute for activating the Noni', {
       icon: '⌛',
     }); 
@@ -59,7 +61,8 @@ const Nonis = () => {
      
     toast(`${noni.name} Activated!`, {
       icon: '⚔️',
-    }); 
+    });
+    setActivating(false)
   }
 
   const changeSaleState = async (tokenId, state) => {
@@ -266,7 +269,7 @@ const Nonis = () => {
                   List for sale
                 </button>
 
-                <button onClick={() => makeNoniActive(noni)} className="p-1 border border-black-2 hover:opacity-60">
+                <button disabled={activating} onClick={() => makeNoniActive(noni)} className="p-1 border border-black-2 hover:opacity-60 disabled:animate-spin">
                   Activate
                 </button>
  
