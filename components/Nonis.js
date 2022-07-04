@@ -14,6 +14,7 @@ import { create } from 'ipfs-http-client'
 
 import { loadLayersModel, io } from "@tensorflow/tfjs";
 
+import toast from "react-hot-toast";
 
 const Nonis = () => {
 
@@ -31,8 +32,10 @@ const Nonis = () => {
     return bytes.buffer;
   }
 
-
   const makeNoniActive = async(noni) => {
+    toast('Wait a minute for activating the Noni', {
+      icon: '⌛',
+    }); 
 
     console.log(`https://gateway.pinata.cloud/ipfs/${noni.modelID}`)
 
@@ -56,6 +59,10 @@ const Nonis = () => {
 
     noni.model = model
     setAgent(noni)
+     
+    toast(`${noni.name} Activated!`, {
+      icon: '⚔️',
+    }); 
   }
 
   const changeSaleState = async (tokenId, state) => {

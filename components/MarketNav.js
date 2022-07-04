@@ -17,6 +17,7 @@ import Noni from "../lib/contracts/Noni.json"
 const Nav = () => {
 
   const [noniCount, setNoniCount] = useState(0)
+  const [minting, setMinting] = useState(false)
   const { account, setAccount } = useContext(userContext)
 
   const connectWallet = async () => {
@@ -113,6 +114,7 @@ const Nav = () => {
   }
 
   const mintNoni = async() => {
+    setMinting(true)
     const { ethereum } = window
 
     const provider = new ethers.providers.Web3Provider(ethereum);
@@ -122,6 +124,16 @@ const Nav = () => {
     const { modelCid, weightsCid } = await encryptNoni()
     console.log(modelCid, weightsCid)
     await contract.safeMint(modelCid, weightsCid)
+
+    contract.on('Minted', (sender, tokenId) => {
+      console.log(sender, tokenId)
+      setMinting(false)
+      toast.success("Minted!")
+    })
+    return () => {
+      contract.removeAllListeners();
+    }
+
   }
 
   useEffect(() => {
@@ -167,7 +179,7 @@ const Nav = () => {
         <p className="text-center font-medium text-base">{noniCount} Nonis Minted</p>
         <p className="text-center font-medium text-base">Go get yours</p>
       </div>
-      <button onClick={mintNoni} className="border-2 border-black w-full text-lg font-medium py-2 hover:bg-noni-lb bg-noni-pink ">
+      <button disabled={minting} onClick={mintNoni} className="border-2 border-black w-full text-lg font-medium py-2 hover:bg-noni-lb bg-noni-pink disabled:animate-bounce">
         MINT 
       </button>
   

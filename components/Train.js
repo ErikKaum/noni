@@ -4,7 +4,6 @@ import { userContext, agentContext } from "../lib/context"
 
 import Game from "./game/Game"
 
-import * as tf from "@tensorflow/tfjs" 
 
 const Train = () => {
   const { agent, setAgent } = useContext(agentContext)
