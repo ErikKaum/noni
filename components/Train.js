@@ -23,14 +23,13 @@ const Train = () => {
 
               <div className="flex flex-col items-center"> 
                 <h2 className="text-xl font-semibold">GAME stats</h2>
-                <p>Your (not yet) are playing with: {agent.name}</p>
+                <p>Your are playing with: {agent.name}</p>
               </div>
 
               <div className="flex flex-col items-center">
                 <h2 className="text-xl font-semibold">How to play?</h2>
-                <p>Click the squares to play Tic Tac Toe.</p>
-                <p>Currently you play against yourself 😆 BUT</p>  
-                <p>in the future you&apos;ll play against your Noni!</p>  
+                <p>It&apos;s Tic Tac Toe not rocket science 🚀</p>
+                <p>Hit the button below and start playing!</p>  
               </div>
             
             <button onClick={() => setStart(true)} className="border-2 border-black w-2/3 text-lg font-medium py-2 bg-noni-lb hover:bg-noni-pink">START GAME</button>

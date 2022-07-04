@@ -54,6 +54,8 @@ const Nonis = () => {
     const weightFile = new File([decryptedWeights], "weights.bin")
 
 
+    console.log(decryptedModel)
+
     const model = await loadLayersModel(io.browserFiles(
       [modelFile, weightFile]));
 
@@ -85,56 +87,71 @@ const Nonis = () => {
     return window.btoa( binary );
   }
 
-  // NEEDS TO BE REWRITTEN
-  const encryptForBuyer = async (to, cid) => {
-    console.log('old cid', cid)
-    console.log(`ipfs://${cid}`)
+  const encryptForBuyer = async (to, modelID, weightsID) => {
 
-    // Too many request to pinata free gateway, might have to do something about it
-    // const res = await fetch(`https://gateway.pinata.cloud/ipfs/${cid}`)
+    const resModel = await fetch(`https://gateway.pinata.cloud/ipfs/${modelID}`) 
+    const dataModel = await resModel.json()
 
-    const res = await fetch(`https://ipfs.io/ipfs/${cid}`)
-    console.log(res) 
-    const data = await res.json()
+    const resWeights = await fetch(`https://gateway.pinata.cloud/ipfs/${weightsID}`) 
+    const dataWeights = await resWeights.json()
 
-    let message = await ethereum.request({method: 'eth_decrypt', params: [data, account]})
-    message = JSON.parse(message)
+    let decryptedModel  = await ethereum.request({method: 'eth_decrypt', params: [dataModel, account]})
+    let decryptedWeights  = await ethereum.request({method: 'eth_decrypt', params: [dataWeights, account]})
+    // decryptedWeights = base64ToArrayBuffer(decryptedWeights)
 
-    console.log('got message', message)
+    console.log(decryptedModel)
 
     const buffer = ethers.utils.arrayify(to)
     const pubKey = arrayBufferToBase64(buffer)
 
-    const encryptedMessage = bufferToHex(
+    const encryptedModel = bufferToHex(
       Buffer.from(
         JSON.stringify(
           encrypt({
             publicKey: pubKey,
-            data: JSON.stringify(message),
+            data: decryptedModel,
             version: 'x25519-xsalsa20-poly1305',
           })
         ),
         'utf8'
       )
     );
+
+    const encryptedWeights = bufferToHex(
+      Buffer.from(
+        JSON.stringify(
+          encrypt({
+            publicKey: pubKey,
+            data: decryptedWeights,
+            version: 'x25519-xsalsa20-poly1305',
+          })
+        ),
+        'utf8'
+      )
+    );
+
     const client = create('https://ipfs.infura.io:5001/api/v0')
-    const added = await client.add(JSON.stringify(encryptedMessage))
-    const newContentID = added.path 
-    return newContentID
+    const addedModel = await client.add(JSON.stringify(encryptedModel))
+    const newModelID = addedModel.path
+    
+    const addedWeights = await client.add(JSON.stringify(encryptedWeights))
+    const newWeightsID = addedWeights.path 
+    
+    return { newModelID, newWeightsID }
   }
 
-  const acceptBid = async (to, pubKey, tokenId, cid) => {
+  const acceptBid = async (to, pubKey, tokenId, modelID, weightsID) => {
     const { ethereum } = window
 
     const provider = new ethers.providers.Web3Provider(ethereum);
     const signer = provider.getSigner();
     const contract = new ethers.Contract(CONTRACT_ADDRESS_NONI, Noni.abi, signer);
 
-    const newContentID = await encryptForBuyer(pubKey, cid)
+    const { newModelID, newWeightsID } = await encryptForBuyer(pubKey, modelID, weightsID)
 
-    console.log('new cid', newContentID)
+    console.log('new model cid', newModelID)
 
-    contract.transfer(account, to, tokenId, newContentID)
+    contract.transfer(account, to, tokenId, newModelID, newWeightsID)
   }
 
   useEffect(() => {
@@ -311,7 +328,7 @@ const Nonis = () => {
                   return(
                   <div key={bid.bidder} className="flex justify-between">
                     <p>Bid: {bid.bid}</p>
-                    <button onClick={() => acceptBid(bid.bidder, bid.pubKey, noni.tokenId, noni.contentID)} className="p-1 border border-black-2 hover:opacity-60">
+                    <button onClick={() => acceptBid(bid.bidder, bid.pubKey, noni.tokenId, noni.modelID, noni.weightsID)} className="p-1 border border-black-2 hover:opacity-60">
                       Accept
                     </button>
                   </div>
