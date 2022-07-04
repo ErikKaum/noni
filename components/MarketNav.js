@@ -122,11 +122,10 @@ const Nav = () => {
     const contract = new ethers.Contract(CONTRACT_ADDRESS_NONI, Noni.abi, signer);
     
     const { modelCid, weightsCid } = await encryptNoni()
-    console.log(modelCid, weightsCid)
+    
     await contract.safeMint(modelCid, weightsCid)
 
     contract.on('Minted', (sender, tokenId) => {
-      console.log(sender, tokenId)
       setMinting(false)
       toast.success("Minted!")
     })

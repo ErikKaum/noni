@@ -37,8 +37,6 @@ const Nonis = () => {
       icon: '⌛',
     }); 
 
-    console.log(`https://gateway.pinata.cloud/ipfs/${noni.modelID}`)
-
     const resModel = await fetch(`https://gateway.pinata.cloud/ipfs/${noni.modelID}`) 
     const dataModel = await resModel.json()
 
@@ -52,9 +50,6 @@ const Nonis = () => {
 
     const modelFile = new File([decryptedModel], "model.json")
     const weightFile = new File([decryptedWeights], "weights.bin")
-
-
-    console.log(decryptedModel)
 
     const model = await loadLayersModel(io.browserFiles(
       [modelFile, weightFile]));
@@ -97,9 +92,6 @@ const Nonis = () => {
 
     let decryptedModel  = await ethereum.request({method: 'eth_decrypt', params: [dataModel, account]})
     let decryptedWeights  = await ethereum.request({method: 'eth_decrypt', params: [dataWeights, account]})
-    // decryptedWeights = base64ToArrayBuffer(decryptedWeights)
-
-    console.log(decryptedModel)
 
     const buffer = ethers.utils.arrayify(to)
     const pubKey = arrayBufferToBase64(buffer)
@@ -148,8 +140,6 @@ const Nonis = () => {
     const contract = new ethers.Contract(CONTRACT_ADDRESS_NONI, Noni.abi, signer);
 
     const { newModelID, newWeightsID } = await encryptForBuyer(pubKey, modelID, weightsID)
-
-    console.log('new model cid', newModelID)
 
     contract.transfer(account, to, tokenId, newModelID, newWeightsID)
   }
