@@ -17,6 +17,7 @@ import Noni from "../lib/contracts/Noni.json"
 const Nav = () => {
 
   const [noniCount, setNoniCount] = useState(0)
+  const [minting, setMinting] = useState(false)
   const { account, setAccount } = useContext(userContext)
 
   const connectWallet = async () => {
@@ -48,11 +49,25 @@ const Nav = () => {
     }
   }
 
+  const arrayBufferToBase64 = (buffer) => {
+    const binary = '';
+    const bytes = new Uint8Array( buffer );
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode( bytes[ i ] );
+    }
+    return window.btoa( binary );
+  }
+
   // This WILL need refactoring some day
   const encryptNoni = async() => {
     // fetch the json from the default AI
-    const res = await fetch(`https://gateway.pinata.cloud/ipfs/QmNQ1ABiGJ9fv9wzxf1k1eKbc8nvXBQw7VnQSNedeRwwfo`)
-    const data = await res.json()
+    const resModel = await fetch(`https://gateway.pinata.cloud/ipfs/QmViWtU3oUCYq7XUzABU8jzYZjGQuG1z3a3W5DiZrNYRy9`)
+    const dataModel = await resModel.json()
+
+    const resWeights = await fetch(`https://gateway.pinata.cloud/ipfs/QmYE3fpyJkf4Z2Jit96VPvoMTkKT5ANYHNENdrh66bkm4N`)
+    const dataWeights = await resWeights.arrayBuffer()
+    const weightsBase64 = arrayBufferToBase64(dataWeights)
     
     // encyrpt the data with the metamask key
     const encryptionPublicKey =  await ethereum.request({
@@ -60,12 +75,25 @@ const Nav = () => {
       params: [account], // you must have access to the specified account
     })
 
-    const encryptedMessage = bufferToHex(
+    const encryptedModel = bufferToHex(
       Buffer.from(
         JSON.stringify(
           encrypt({
             publicKey: encryptionPublicKey,
-            data: JSON.stringify(data),
+            data: JSON.stringify(dataModel),
+            version: 'x25519-xsalsa20-poly1305',
+          })
+        ),
+        'utf8'
+      )
+    );
+
+    const encryptedWeights = bufferToHex(
+      Buffer.from(
+        JSON.stringify(
+          encrypt({
+            publicKey: encryptionPublicKey,
+            data: JSON.stringify(weightsBase64),
             version: 'x25519-xsalsa20-poly1305',
           })
         ),
@@ -75,23 +103,36 @@ const Nav = () => {
 
     // load the encypted data to IPFS
     const client = create('https://ipfs.infura.io:5001/api/v0')
-    const added = await client.add(JSON.stringify(encryptedMessage))
-    const cid = added.path 
+    const modelAdded = await client.add(JSON.stringify(encryptedModel))
+    const modelCid = modelAdded.path
+    
+    const weightsAdded = await client.add(JSON.stringify(encryptedWeights))
+    const weightsCid = weightsAdded.path 
 
-    return cid
+    return { modelCid, weightsCid }
 
   }
 
   const mintNoni = async() => {
+    setMinting(true)
     const { ethereum } = window
 
     const provider = new ethers.providers.Web3Provider(ethereum);
     const signer = provider.getSigner();
     const contract = new ethers.Contract(CONTRACT_ADDRESS_NONI, Noni.abi, signer);
     
-    const cid = await encryptNoni()
-    console.log(cid)
-    await contract.safeMint(cid)
+    const { modelCid, weightsCid } = await encryptNoni()
+    
+    await contract.safeMint(modelCid, weightsCid)
+
+    contract.on('Minted', (sender, tokenId) => {
+      setMinting(false)
+      toast.success("Minted!")
+    })
+    return () => {
+      contract.removeAllListeners();
+    }
+
   }
 
   useEffect(() => {
@@ -137,7 +178,7 @@ const Nav = () => {
         <p className="text-center font-medium text-base">{noniCount} Nonis Minted</p>
         <p className="text-center font-medium text-base">Go get yours</p>
       </div>
-      <button onClick={mintNoni} className="border-2 border-black w-full text-lg font-medium py-2 hover:bg-noni-lb bg-noni-pink ">
+      <button disabled={minting} onClick={mintNoni} className="border-2 border-black w-full text-lg font-medium py-2 hover:bg-noni-lb bg-noni-pink disabled:animate-bounce">
         MINT 
       </button>
   

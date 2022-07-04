@@ -12,12 +12,55 @@ import { bufferToHex } from 'ethereumjs-util'
 import { encrypt } from '@metamask/eth-sig-util';
 import { create } from 'ipfs-http-client'
 
+import { loadLayersModel, io } from "@tensorflow/tfjs";
+
+import toast from "react-hot-toast";
+
 const Nonis = () => {
 
   const [nonis, setNonis] = useState([])
   const [nonisForSale, setNonisForSale] = useState([])
   const { account, setAccount } = useContext(userContext)
   const { agent, setAgent} = useContext(agentContext)
+
+  const base64ToArrayBuffer = (base64) => {
+    const len = base64.length;
+    const bytes = new Uint8Array(len);
+    for (var i = 0; i < len; i++) {
+        bytes[i] = base64.charCodeAt(i);
+    }
+    return bytes.buffer;
+  }
+
+  const makeNoniActive = async(noni) => {
+    toast('Wait a minute for activating the Noni', {
+      icon: '⌛',
+    }); 
+
+    const resModel = await fetch(`https://gateway.pinata.cloud/ipfs/${noni.modelID}`) 
+    const dataModel = await resModel.json()
+
+    const resWeights = await fetch(`https://gateway.pinata.cloud/ipfs/${noni.weightsID}`) 
+    const dataWeights = await resWeights.json()
+
+    let decryptedModel  = await ethereum.request({method: 'eth_decrypt', params: [dataModel, account]})
+
+    let decryptedWeights  = await ethereum.request({method: 'eth_decrypt', params: [dataWeights, account]})
+    decryptedWeights = base64ToArrayBuffer(decryptedWeights)
+
+    const modelFile = new File([decryptedModel], "model.json")
+    const weightFile = new File([decryptedWeights], "weights.bin")
+
+    const model = await loadLayersModel(io.browserFiles(
+      [modelFile, weightFile]));
+
+    noni.model = model
+    setAgent(noni)
+     
+    toast(`${noni.name} Activated!`, {
+      icon: '⚔️',
+    }); 
+  }
 
   const changeSaleState = async (tokenId, state) => {
     const { ethereum } = window
@@ -27,7 +70,6 @@ const Nonis = () => {
     const contract = new ethers.Contract(CONTRACT_ADDRESS_NONI, Noni.abi, signer);
 
     contract.setSaleState(tokenId, state)
-    console.log("lol")
   }
 
   const arrayBufferToBase64 = (buffer) => {
@@ -40,55 +82,66 @@ const Nonis = () => {
     return window.btoa( binary );
   }
 
-  const encryptForBuyer = async (to, cid) => {
-    console.log('old cid', cid)
-    console.log(`ipfs://${cid}`)
+  const encryptForBuyer = async (to, modelID, weightsID) => {
 
-    // Too many request to pinata free gateway, might have to do something about it
-    // const res = await fetch(`https://gateway.pinata.cloud/ipfs/${cid}`)
+    const resModel = await fetch(`https://gateway.pinata.cloud/ipfs/${modelID}`) 
+    const dataModel = await resModel.json()
 
-    const res = await fetch(`https://ipfs.io/ipfs/${cid}`)
-    console.log(res) 
-    const data = await res.json()
+    const resWeights = await fetch(`https://gateway.pinata.cloud/ipfs/${weightsID}`) 
+    const dataWeights = await resWeights.json()
 
-    let message = await ethereum.request({method: 'eth_decrypt', params: [data, account]})
-    message = JSON.parse(message)
-
-    console.log('got message', message)
+    let decryptedModel  = await ethereum.request({method: 'eth_decrypt', params: [dataModel, account]})
+    let decryptedWeights  = await ethereum.request({method: 'eth_decrypt', params: [dataWeights, account]})
 
     const buffer = ethers.utils.arrayify(to)
     const pubKey = arrayBufferToBase64(buffer)
 
-    const encryptedMessage = bufferToHex(
+    const encryptedModel = bufferToHex(
       Buffer.from(
         JSON.stringify(
           encrypt({
             publicKey: pubKey,
-            data: JSON.stringify(message),
+            data: decryptedModel,
             version: 'x25519-xsalsa20-poly1305',
           })
         ),
         'utf8'
       )
     );
+
+    const encryptedWeights = bufferToHex(
+      Buffer.from(
+        JSON.stringify(
+          encrypt({
+            publicKey: pubKey,
+            data: decryptedWeights,
+            version: 'x25519-xsalsa20-poly1305',
+          })
+        ),
+        'utf8'
+      )
+    );
+
     const client = create('https://ipfs.infura.io:5001/api/v0')
-    const added = await client.add(JSON.stringify(encryptedMessage))
-    const newContentID = added.path 
-    return newContentID
+    const addedModel = await client.add(JSON.stringify(encryptedModel))
+    const newModelID = addedModel.path
+    
+    const addedWeights = await client.add(JSON.stringify(encryptedWeights))
+    const newWeightsID = addedWeights.path 
+    
+    return { newModelID, newWeightsID }
   }
 
-  const acceptBid = async (to, pubKey, tokenId, cid) => {
+  const acceptBid = async (to, pubKey, tokenId, modelID, weightsID) => {
     const { ethereum } = window
 
     const provider = new ethers.providers.Web3Provider(ethereum);
     const signer = provider.getSigner();
     const contract = new ethers.Contract(CONTRACT_ADDRESS_NONI, Noni.abi, signer);
 
-    const newContentID = await encryptForBuyer(pubKey, cid)
+    const { newModelID, newWeightsID } = await encryptForBuyer(pubKey, modelID, weightsID)
 
-    console.log('new cid', newContentID)
-
-    contract.transfer(account, to, tokenId, newContentID)
+    contract.transfer(account, to, tokenId, newModelID, newWeightsID)
   }
 
   useEffect(() => {
@@ -131,9 +184,11 @@ const Nonis = () => {
           name: result.name,
           elo : result.elo,
           image: result.imageURI,
-          contentID: result.contentID,
+          modelID: result.modelID,
+          weightsID: result.weightsID,
           forSale: result.forSale,
-          bids : bidArray
+          bids : bidArray,
+          model : null
         }
         if (noni.forSale == 0) {
           noniArray.push(noni)
@@ -211,7 +266,7 @@ const Nonis = () => {
                   List for sale
                 </button>
 
-                <button onClick={() => setAgent(noni)} className="p-1 border border-black-2 hover:opacity-60">
+                <button onClick={() => makeNoniActive(noni)} className="p-1 border border-black-2 hover:opacity-60">
                   Activate
                 </button>
  
@@ -249,7 +304,7 @@ const Nonis = () => {
                   Delist from sale
                 </button>
 
-                <button onClick={() => setAgent(noni)} className="p-1 border border-black-2 hover:opacity-60">
+                <button onClick={() => makeNoniActive(noni)} className="p-1 border border-black-2 hover:opacity-60">
                   Activate
                 </button> 
               </div>
@@ -263,7 +318,7 @@ const Nonis = () => {
                   return(
                   <div key={bid.bidder} className="flex justify-between">
                     <p>Bid: {bid.bid}</p>
-                    <button onClick={() => acceptBid(bid.bidder, bid.pubKey, noni.tokenId, noni.contentID)} className="p-1 border border-black-2 hover:opacity-60">
+                    <button onClick={() => acceptBid(bid.bidder, bid.pubKey, noni.tokenId, noni.modelID, noni.weightsID)} className="p-1 border border-black-2 hover:opacity-60">
                       Accept
                     </button>
                   </div>

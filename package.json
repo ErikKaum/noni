@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@metamask/eth-sig-util": "^4.0.1",
-    "axios": "^0.27.2",
+    "@tensorflow/tfjs": "^3.18.0",
     "ethereumjs-util": "^7.1.5",
     "ethers": "^5.6.8",
     "ipfs-http-client": "^57.0.1",
