@@ -1,5 +1,5 @@
 import { useContext, useState, useEffect } from "react"
-
+import { ethers } from "ethers"
 import Square from "./Square"
 import { Patterns } from "./Patterns"
 
@@ -7,15 +7,19 @@ import toast from "react-hot-toast"
 
 import { tensor } from "@tensorflow/tfjs"
 
+import GameAbi from "../../lib/contracts/Game.json"
+import { CONTRACT_ADDRESS_GAME } from "../../lib/constants";
+
 import { userContext, agentContext } from "../../lib/context"
 
-const Game = ({ start, setStart, overrideBoard }) => {
+const  BattleGame = ({ activeGame, start, setStart }) => {
 
   const { agent, setAgent } = useContext(agentContext)
+  const { account, setAccount } = useContext(userContext) 
   const [board, setBoard] = useState(["", "", "", "", "", "", "", "", ""])
   const [player, setPlayer] = useState("O")
   const [result, setResult] = useState({winner : "none", state: "none"})
-  
+
   const getBoardAsTensor = () => {
     let inputArray = []
     board.forEach((value) => {
@@ -23,7 +27,7 @@ const Game = ({ start, setStart, overrideBoard }) => {
             inputArray.push(1)
         }
         else if (value === "O") {
-          inputArray.push(-1) 
+          inputArray.push(-1)
         }
         else {
             inputArray.push(0)
@@ -90,11 +94,11 @@ const Game = ({ start, setStart, overrideBoard }) => {
     }
   }
 
-  const chooseSquare = (square) => {
+  const chooseSquare = (square, mark) => {
     setBoard(
         board.map((value, index) => {
             if (index === square && value === "") {
-              return player
+              return mark
             }
             return value
         })
@@ -106,29 +110,6 @@ const Game = ({ start, setStart, overrideBoard }) => {
     setPlayer("O")
     setStart(false)
   }
-
-  useEffect(() => {
-
-    if (player === "X" && agent.model) {
-    const inputTensor = getBoardAsTensor()
-    let preds = agent.model.predict(inputTensor);
-    preds = preds.reshape([-1])
-
-    const argPreds = argSort(preds.arraySync())
-
-    let choice
-    for (let i = 0; i < argPreds.length; i++) {
-      choice = argPreds[i]
-      const legal = checkIfLegal(choice)
-      
-      if (legal === true) {
-        break
-      }
-    }
-    chooseSquare(choice)
-    }
-  
-  },[player])
 
   useEffect(() => {
     if (start === true) {
@@ -163,9 +144,9 @@ const Game = ({ start, setStart, overrideBoard }) => {
   }, [result])
 
   useEffect(() => {
-    if (overrideBoard !== undefined) {
+    if (activeGame !== undefined) {
       let newBoard = []
-      overrideBoard.forEach((item) => {
+      activeGame.game.forEach((item) => {
         if (item === 0) {
           newBoard.push("")
         }
@@ -177,39 +158,72 @@ const Game = ({ start, setStart, overrideBoard }) => {
         }
       })
       setBoard(newBoard)
-      console.log(newBoard)
     }
-  }, [setBoard, overrideBoard])
- 
+  }, [setBoard, activeGame])
+
   const makeMove = async() => {
-    setStart(true)
+    if (agent.model) {
+        const inputTensor = getBoardAsTensor()
+        let preds = agent.model.predict(inputTensor);
+        preds = preds.reshape([-1])
+
+        const argPreds = argSort(preds.arraySync())
+
+        let choice
+        for (let i = 0; i < argPreds.length; i++) {
+            choice = argPreds[i]
+            const legal = checkIfLegal(choice)
+
+            if (legal === true) {
+                break
+            }
+        }
+
+        const { ethereum } = window
+        const provider = new ethers.providers.Web3Provider(ethereum);
+        const signer = provider.getSigner();
+        const contract = new ethers.Contract(CONTRACT_ADDRESS_GAME, GameAbi.abi, signer);
+        
+        let mark
+        if (activeGame.players[0] === account) {
+            mark = 'X'
+        } else {
+            mark = 'O'
+        }
+        
+        await contract.makeMove(choice, activeGame.gameId)
+        chooseSquare(choice, mark)
+        }
   }
 
   return(
-    <div className="flex flex-col w-96 h-96 space-y-2">
-        <div className="flex h-1/3 space-x-2">
-          <Square value={board[0]} chooseSquare={() => chooseSquare(0)} start={start}/>
-          <Square value={board[1]} chooseSquare={() => chooseSquare(1)} start={start}/>
-          <Square value={board[2]} chooseSquare={() => chooseSquare(2)} start={start}/>
+    <div className="flex flex-col justify-center items-center">
+        <div className="flex flex-col w-96 h-96 space-y-2 mb-5">
+            <div className="flex h-1/3 space-x-2">
+            <Square value={board[0]} chooseSquare={() => chooseSquare(0)} start={start}/>
+            <Square value={board[1]} chooseSquare={() => chooseSquare(1)} start={start}/>
+            <Square value={board[2]} chooseSquare={() => chooseSquare(2)} start={start}/>
+            </div>
+
+            <div className="flex h-1/3 space-x-2">
+            <Square value={board[3]} chooseSquare={() => chooseSquare(3)} start={start}/>
+            <Square value={board[4]} chooseSquare={() => chooseSquare(4)} start={start}/>
+            <Square value={board[5]} chooseSquare={() => chooseSquare(5)} start={start}/>
+            </div>
+
+            <div className="flex h-1/3 space-x-2">
+            <Square value={board[6]} chooseSquare={() => chooseSquare(6)} start={start}/>
+            <Square value={board[7]} chooseSquare={() => chooseSquare(7)} start={start}/>
+            <Square value={board[8]} chooseSquare={() => chooseSquare(8)} start={start}/>
+            </div>
         </div>
-
-        <div className="flex h-1/3 space-x-2">
-          <Square value={board[3]} chooseSquare={() => chooseSquare(3)} start={start}/>
-          <Square value={board[4]} chooseSquare={() => chooseSquare(4)} start={start}/>
-          <Square value={board[5]} chooseSquare={() => chooseSquare(5)} start={start}/>    
-        </div>
-
-        <div className="flex h-1/3 space-x-2">
-          <Square value={board[6]} chooseSquare={() => chooseSquare(6)} start={start}/>
-          <Square value={board[7]} chooseSquare={() => chooseSquare(7)} start={start}/>
-          <Square value={board[8]} chooseSquare={() => chooseSquare(8)} start={start}/>
-        </div>
-
-        <button onClick={makeMove}>LOL</button>
-
+        
+        {activeGame && activeGame.game.length > 0 &&
+        <button onClick={makeMove} className="border-2 border-black w-2/3 text-lg font-medium py-2 bg-noni-lb hover:bg-noni-pink" >MAKE MOVE</button>
+        }
+    
     </div>
-
   )
 }
 
-export default Game
+export default BattleGame
