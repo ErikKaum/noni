@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useContext, useState, useEffect } from "react"
 
 import Square from "./Square"
 import { Patterns } from "./Patterns"
@@ -7,8 +7,11 @@ import toast from "react-hot-toast"
 
 import { tensor } from "@tensorflow/tfjs"
 
-const Game = ({ start, setStart, currentModel }) => {
+import { userContext, agentContext } from "../../lib/context"
 
+const Game = ({ start, setStart, overrideBoard }) => {
+
+  const { agent, setAgent } = useContext(agentContext)
   const [board, setBoard] = useState(["", "", "", "", "", "", "", "", ""])
   const [player, setPlayer] = useState("O")
   const [result, setResult] = useState({winner : "none", state: "none"})
@@ -106,9 +109,9 @@ const Game = ({ start, setStart, currentModel }) => {
 
   useEffect(() => {
 
-    if (player === "X" && currentModel) {
+    if (player === "X" && agent.model) {
     const inputTensor = getBoardAsTensor()
-    let preds = currentModel.predict(inputTensor);
+    let preds = agent.model.predict(inputTensor);
     preds = preds.reshape([-1])
 
     const argPreds = argSort(preds.arraySync())
@@ -158,7 +161,30 @@ const Game = ({ start, setStart, currentModel }) => {
     restartGame();
   }
   }, [result])
-  
+
+  useEffect(() => {
+    if (overrideBoard !== undefined) {
+      let newBoard = []
+      overrideBoard.forEach((item) => {
+        if (item === 0) {
+          newBoard.push("")
+        }
+        else if (item === -1) {
+          newBoard.push("X")
+        }
+        else {
+          newBoard.push("O")
+        }
+      })
+      setBoard(newBoard)
+      console.log(newBoard)
+    }
+  }, [setBoard, overrideBoard])
+ 
+  const makeMove = async() => {
+    setStart(true)
+  }
+
   return(
     <div className="flex flex-col w-96 h-96 space-y-2">
         <div className="flex h-1/3 space-x-2">
@@ -179,7 +205,8 @@ const Game = ({ start, setStart, currentModel }) => {
           <Square value={board[8]} chooseSquare={() => chooseSquare(8)} start={start}/>
         </div>
 
-        {/* <button onClick={predict}>LOL</button> */}
+        <button onClick={makeMove}>LOL</button>
+
     </div>
 
   )
