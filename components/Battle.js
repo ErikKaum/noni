@@ -17,7 +17,9 @@ const Battle = () => {
   const [allGames, setAllGames] = useState([])
   const [activeGame, setActiveGame] = useState()
   const [player2, setPlayer2] = useState(null)
-  
+  const [currentOponent, setCurrentOponent] = useState("Not decided yet")
+  const [knob, setKnob] = useState(false)
+
   useEffect(() => {
     const getChallenges = async() => {
       const { ethereum } = window
@@ -27,14 +29,13 @@ const Battle = () => {
       const contract = new ethers.Contract(CONTRACT_ADDRESS_GAME, GameAbi.abi, signer);
       const incomingChallenges =  await contract.getMyChallenges()
       const createdChallenges = await contract.getMyGames()
-      // let createdChallenges = []
     
       const currentGames = incomingChallenges.concat(createdChallenges) 
       let tempGames = [] 
 
       for (const gameId of currentGames) {
         const game = await contract.getGame(gameId)
-        
+
         let verified 
         game.players.forEach((item, idx) => {
           if (item === account) {
@@ -45,15 +46,32 @@ const Battle = () => {
             }
           }
         })
-        
+        // there must be a better way of doing this
+        let writtenState
+        if (game.state === 3) {
+          writtenState = 'still going'
+        } else if (game.state === 2) {
+          writtenState = 'tie'
+        } else if (game.state === 0 && game.players[0] === account) {
+          writtenState = 'won' 
+        } else if (game.state === 0 && game.players[1] === account) {
+          writtenState = 'lost' 
+        } else if (game.state === 1 && game.players[1] === account) {
+          writtenState = 'won' 
+        } else if (game.state === 1 && game.players[0] === account) {
+          writtenState = 'lost' 
+        }
+
         const tempGame = {
           gameId: gameId.toNumber(),
           game : game.game,
           players : game.players,
+          nonis : game.nonis,
           state : game.state,
           turn : game.turn,
           verification : game.verification,
-          userVerified : verified
+          userVerified : verified,
+          writtenState : writtenState
         }
         tempGames.push(tempGame)
       }
@@ -64,8 +82,16 @@ const Battle = () => {
 
   const activateGame = async (gameId) => {
     allGames.forEach((game) => {
+      let opponent 
       if (gameId == game.gameId) {
+        if (game.players[0] !== account) {
+          opponent = game.nonis[0]
+        }
+        else {
+          opponent = game.nonis[1]
+        } 
         setActiveGame(game)
+        setCurrentOponent('0xNoni'+opponent)
       }
     })
   }
@@ -92,8 +118,8 @@ const Battle = () => {
     const signer = provider.getSigner();
     const contract = new ethers.Contract(CONTRACT_ADDRESS_GAME, GameAbi.abi, signer);
 
-    // this will need the noni in the future 
-    await contract.verifyGame(gameId)
+    await contract.verifyGame(gameId, agent.tokenId)
+
   }
 
   const move = async() => {
@@ -135,8 +161,8 @@ const Battle = () => {
               <>
                 <h2 className="text-xl font-semibold">GAME {activeGame.gameId}</h2>
                 <p>Your are Battling with: {agent.name}</p>
-                <p>against: {agent.name}</p>
-                <p>Game is: {activeGame.state}</p>
+                <p>against: {currentOponent}</p>
+                <p>Game is: {activeGame.writtenState}</p>
               </>
               }
               

@@ -145,21 +145,65 @@ const  BattleGame = ({ activeGame, start, setStart }) => {
 
   useEffect(() => {
     if (activeGame !== undefined) {
-      let newBoard = []
-      activeGame.game.forEach((item) => {
-        if (item === 0) {
-          newBoard.push("")
-        }
-        else if (item === -1) {
-          newBoard.push("X")
-        }
-        else {
-          newBoard.push("O")
-        }
-      })
+      const newBoard = translateBoard(activeGame.game)
       setBoard(newBoard)
     }
   }, [setBoard, activeGame])
+
+  const translateBoard = (oldBoard) => {
+    let newBoard = []
+    oldBoard.forEach((item) => {
+      if (item === 0) {
+        newBoard.push("")
+      }
+      else if (item === -1) {
+        newBoard.push("X")
+      }
+      else {
+        newBoard.push("O")
+      }
+    })
+    return newBoard
+  }
+
+  useEffect(() => {
+    const listenForBoardInEffect = async() => {
+      console.log('lol')
+      const { ethereum } = window
+      const provider = new ethers.providers.Web3Provider(ethereum);
+      const signer = provider.getSigner();
+      const contract = new ethers.Contract(CONTRACT_ADDRESS_GAME, GameAbi.abi, signer);
+      
+      contract.on('MoveDone', (gameId, oldBoard) => {
+        if (activeGame.gameId === gameId) {
+          const newBoard = translateBoard(oldBoard)
+          setBoard(newBoard)
+        }
+      })
+      return () => {
+        contract.removeAllListeners();
+      }
+    }
+    listenForBoardInEffect()
+  }, [activeGame])
+
+  const listenForBoard = async() => {
+    console.log('lol')
+    const { ethereum } = window
+    const provider = new ethers.providers.Web3Provider(ethereum);
+    const signer = provider.getSigner();
+    const contract = new ethers.Contract(CONTRACT_ADDRESS_GAME, GameAbi.abi, signer);
+    
+    contract.on('MoveDone', (gameId, oldBoard) => {
+      if (activeGame.gameId === gameId) {
+        const newBoard = translateBoard(oldBoard)
+        setBoard(newBoard)
+      }
+    })
+    return () => {
+      contract.removeAllListeners();
+    }
+  }
 
   const makeMove = async() => {
     if (agent.model) {
@@ -184,16 +228,15 @@ const  BattleGame = ({ activeGame, start, setStart }) => {
         const signer = provider.getSigner();
         const contract = new ethers.Contract(CONTRACT_ADDRESS_GAME, GameAbi.abi, signer);
         
-        let mark
-        if (activeGame.players[0] === account) {
-            mark = 'X'
-        } else {
-            mark = 'O'
+        try {
+          await contract.makeMove(choice, activeGame.gameId)
         }
-        
-        await contract.makeMove(choice, activeGame.gameId)
-        chooseSquare(choice, mark)
+        catch(error) {
+            const words = error.reason.split(':');
+            toast.error(words[1])
         }
+        listenForBoard() 
+    }
   }
 
   return(
