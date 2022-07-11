@@ -91,7 +91,9 @@ const Battle = () => {
           opponent = game.nonis[1]
         } 
         setActiveGame(game)
-        setCurrentOponent('0xNoni'+opponent)
+        if (opponent > 0) {
+          setCurrentOponent('0xNoni'+opponent)
+        }
       }
     })
   }
