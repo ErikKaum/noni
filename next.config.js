@@ -1,18 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-
-  // async rewrites() {
-  //   return [
-  //     {
-  //       source: '/',
-  //       destination: 'https://gateway.pinata.cloud/ipfs/*',
-  //     },
-  //   ]
-  // },
-  
-  reactStrictMode: true,  
+  webpack(config) {
+    config.output.webassemblyModuleFilename = 'static/wasm/[modulehash].wasm'
+    config.experiments = { asyncWebAssembly: true }
+    config.resolve.fallback = { fs: false };
+    return config
+  },  
+  reactStrictMode: true,
 }
 
 module.exports = nextConfig
-
-

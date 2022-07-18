@@ -5,12 +5,14 @@ import { Patterns } from "./Patterns"
 
 import toast from "react-hot-toast"
 
-import { tensor } from "@tensorflow/tfjs"
+import { tensor, loadLayersModel, sequential } from "@tensorflow/tfjs"
 
 import GameAbi from "../../lib/contracts/Game.json"
 import { CONTRACT_ADDRESS_GAME } from "../../lib/constants";
 
 import { userContext, agentContext } from "../../lib/context"
+
+import { generateAndVerifyProof, convertProof } from "../../lib/zk/proof"
 
 const  BattleGame = ({ activeGame, start, setStart }) => {
 
@@ -166,26 +168,26 @@ const  BattleGame = ({ activeGame, start, setStart }) => {
     return newBoard
   }
 
-  useEffect(() => {
-    const listenForBoardInEffect = async() => {
-      console.log('lol')
-      const { ethereum } = window
-      const provider = new ethers.providers.Web3Provider(ethereum);
-      const signer = provider.getSigner();
-      const contract = new ethers.Contract(CONTRACT_ADDRESS_GAME, GameAbi.abi, signer);
+  // useEffect(() => {
+  //   const listenForBoardInEffect = async() => {
+  //     console.log('lol')
+  //     const { ethereum } = window
+  //     const provider = new ethers.providers.Web3Provider(ethereum);
+  //     const signer = provider.getSigner();
+  //     const contract = new ethers.Contract(CONTRACT_ADDRESS_GAME, GameAbi.abi, signer);
       
-      contract.on('MoveDone', (gameId, oldBoard) => {
-        if (activeGame.gameId === gameId) {
-          const newBoard = translateBoard(oldBoard)
-          setBoard(newBoard)
-        }
-      })
-      return () => {
-        contract.removeAllListeners();
-      }
-    }
-    listenForBoardInEffect()
-  }, [activeGame])
+  //     contract.on('MoveDone', (gameId, oldBoard) => {
+  //       if (activeGame.gameId === gameId) {
+  //         const newBoard = translateBoard(oldBoard)
+  //         setBoard(newBoard)
+  //       }
+  //     })
+  //     return () => {
+  //       contract.removeAllListeners();
+  //     }
+  //   }
+  //   listenForBoardInEffect()
+  // }, [activeGame])
 
   const listenForBoard = async() => {
     console.log('lol')
@@ -205,10 +207,59 @@ const  BattleGame = ({ activeGame, start, setStart }) => {
     }
   }
 
+  const convertModelForSnark = async() => {
+    // Temporarily, I use the model from public since the model in the nft has an encryption error
+    const model = await loadLayersModel('model.json');
+
+    const newModel = sequential()  
+    for (let i = 0; i < agent.model.layers.length - 1; i++) {
+        newModel.add(model.layers[i])
+    }
+
+    const inputTensor = getBoardAsTensor()
+    let x = newModel.predict(inputTensor)
+    let A = model.layers[5].weights[0].val
+
+    x = x.squeeze().arraySync()
+    A = A.arraySync()
+
+    const xMod = []
+    x.forEach((item) => {
+        item = parseInt(parseFloat(item) * 1_000)
+        // xMod.push(BigInt(item))
+        xMod.push(item)
+      })
+
+    const aMod = []
+    A.forEach((vec) => {
+        let temp = []  
+        vec.forEach((item) => {
+            item = parseInt(parseFloat(item) * 1_000)
+            // temp.push(BigInt(item))
+            temp.push(item)
+        })
+        aMod.push(temp)
+    })
+
+    const out = {
+      A:aMod,
+      x:xMod
+    }
+    console.log(out)
+
+
+    return { aMod, xMod }
+  } 
+
   const makeMove = async() => {
     if (agent.model) {
         const inputTensor = getBoardAsTensor()
-        let preds = agent.model.predict(inputTensor);
+        
+        // Temp 
+        const model = await loadLayersModel('model.json');
+        let preds = model.predict(inputTensor);
+        // let preds = agent.model.predict(inputTensor);
+       
         preds = preds.reshape([-1])
 
         const argPreds = argSort(preds.arraySync())
@@ -223,19 +274,26 @@ const  BattleGame = ({ activeGame, start, setStart }) => {
             }
         }
 
+        const { aMod, xMod } = await convertModelForSnark()
+        const result = await generateAndVerifyProof(aMod, xMod)
+        const { _proof, _input }  = convertProof(result)
+
+        console.log(_proof)
+        console.log(_input)
+ 
         const { ethereum } = window
         const provider = new ethers.providers.Web3Provider(ethereum);
         const signer = provider.getSigner();
         const contract = new ethers.Contract(CONTRACT_ADDRESS_GAME, GameAbi.abi, signer);
         
         try {
-          await contract.makeMove(choice, activeGame.gameId)
+          await contract.makeMove(choice, activeGame.gameId, _proof, _input)
         }
         catch(error) {
             const words = error.reason.split(':');
             toast.error(words[1])
         }
-        listenForBoard() 
+        // listenForBoard() 
     }
   }
 
@@ -264,7 +322,6 @@ const  BattleGame = ({ activeGame, start, setStart }) => {
         {activeGame && activeGame.game.length > 0 &&
         <button onClick={makeMove} className="border-2 border-black w-2/3 text-lg font-medium py-2 bg-noni-lb hover:bg-noni-pink" >MAKE MOVE</button>
         }
-    
     </div>
   )
 }
