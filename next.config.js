@@ -1,8 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   webpack(config) {
+
     config.output.webassemblyModuleFilename = 'static/wasm/[modulehash].wasm'
-    config.experiments = { asyncWebAssembly: true }
+    config.experiments = { asyncWebAssembly: true, layers: true }
     config.resolve.fallback = { fs: false };
     return config
   },  
@@ -10,3 +11,4 @@ const nextConfig = {
 }
 
 module.exports = nextConfig
+
