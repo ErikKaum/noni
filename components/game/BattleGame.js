@@ -255,11 +255,7 @@ const  BattleGame = ({ activeGame, start, setStart }) => {
     if (agent.model) {
         const inputTensor = getBoardAsTensor()
         
-        // Temp 
-        const model = await loadLayersModel('model.json');
-        let preds = model.predict(inputTensor);
-        // let preds = agent.model.predict(inputTensor);
-       
+        let preds = agent.model.predict(inputTensor);
         preds = preds.reshape([-1])
 
         const argPreds = argSort(preds.arraySync())
