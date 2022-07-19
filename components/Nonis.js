@@ -35,14 +35,14 @@ const Nonis = () => {
 
   const makeNoniActive = async(noni) => {
     setActivating(true)
-    toast('Wait a minute for activating the Noni', {
+    toast('Wait a few minutes for activating the Noni', {
       icon: '⌛',
     }); 
 
-    const resModel = await fetch(`https://gateway.pinata.cloud/ipfs/${noni.modelID}`) 
+    const resModel = await fetch(`https://noni.mypinata.cloud/ipfs/${noni.modelID}`) 
     const dataModel = await resModel.json()
 
-    const resWeights = await fetch(`https://gateway.pinata.cloud/ipfs/${noni.weightsID}`) 
+    const resWeights = await fetch(`https://noni.mypinata.cloud/ipfs/${noni.weightsID}`) 
     const dataWeights = await resWeights.json()
 
     let decryptedModel  = await ethereum.request({method: 'eth_decrypt', params: [dataModel, account]})

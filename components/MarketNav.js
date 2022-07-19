@@ -62,10 +62,10 @@ const Nav = () => {
   // This WILL need refactoring some day
   const encryptNoni = async() => {
     // fetch the json from the default AI
-    const resModel = await fetch(`https://gateway.pinata.cloud/ipfs/QmViWtU3oUCYq7XUzABU8jzYZjGQuG1z3a3W5DiZrNYRy9`)
+    const resModel = await fetch(`https://noni.mypinata.cloud/ipfs/QmViWtU3oUCYq7XUzABU8jzYZjGQuG1z3a3W5DiZrNYRy9`)
     const dataModel = await resModel.json()
 
-    const resWeights = await fetch(`https://gateway.pinata.cloud/ipfs/QmYE3fpyJkf4Z2Jit96VPvoMTkKT5ANYHNENdrh66bkm4N`)
+    const resWeights = await fetch(`https://noni.mypinata.cloud/ipfs/QmYE3fpyJkf4Z2Jit96VPvoMTkKT5ANYHNENdrh66bkm4N`)
     const dataWeights = await resWeights.arrayBuffer()
     const weightsBase64 = arrayBufferToBase64(dataWeights)
     
