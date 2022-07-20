@@ -24,30 +24,31 @@ const Nonis = () => {
   const { account, setAccount } = useContext(userContext)
   const { agent, setAgent} = useContext(agentContext)
 
-  const base64ToArrayBuffer = (base64) => {
-    const len = base64.length;
-    const bytes = new Uint8Array(len);
+  function base64ToArrayBuffer(base64) {
+    var binary_string = window.atob(base64);
+    var len = binary_string.length;
+    var bytes = new Uint8Array(len);
     for (var i = 0; i < len; i++) {
-        bytes[i] = base64.charCodeAt(i);
+        bytes[i] = binary_string.charCodeAt(i);
     }
     return bytes.buffer;
   }
 
   const makeNoniActive = async(noni) => {
     setActivating(true)
-    toast('Wait a minute for activating the Noni', {
+    toast('Wait a few minutes for activating the Noni', {
       icon: '⌛',
     }); 
 
-    const resModel = await fetch(`https://gateway.pinata.cloud/ipfs/${noni.modelID}`) 
+    const resModel = await fetch(`https://noni.mypinata.cloud/ipfs/${noni.modelID}`)
     const dataModel = await resModel.json()
 
-    const resWeights = await fetch(`https://gateway.pinata.cloud/ipfs/${noni.weightsID}`) 
+    const resWeights = await fetch(`https://noni.mypinata.cloud/ipfs/${noni.weightsID}`)
     const dataWeights = await resWeights.json()
 
     let decryptedModel  = await ethereum.request({method: 'eth_decrypt', params: [dataModel, account]})
-
     let decryptedWeights  = await ethereum.request({method: 'eth_decrypt', params: [dataWeights, account]})
+    decryptedWeights = decryptedWeights.substring(1, decryptedWeights.length-1)    
     decryptedWeights = base64ToArrayBuffer(decryptedWeights)
 
     const modelFile = new File([decryptedModel], "model.json")

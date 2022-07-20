@@ -208,20 +208,20 @@ const  BattleGame = ({ activeGame, start, setStart }) => {
   }
 
   const convertModelForSnark = async() => {
-    // Temporarily, I use the model from public since the model in the nft has an encryption error
-    const model = await loadLayersModel('model.json');
 
     const newModel = sequential()  
     for (let i = 0; i < agent.model.layers.length - 1; i++) {
-        newModel.add(model.layers[i])
+        newModel.add(agent.model.layers[i])
     }
 
     const inputTensor = getBoardAsTensor()
     let x = newModel.predict(inputTensor)
-    let A = model.layers[5].weights[0].val
+    let A = agent.model.layers[5].weights[0].val
+    let bias = agent.model.layers[5].weights[1].val
 
     x = x.squeeze().arraySync()
-    A = A.arraySync()
+    A = A.transpose().arraySync()
+    bias = bias.arraySync()
 
     const xMod = []
     x.forEach((item) => {
@@ -241,28 +241,57 @@ const  BattleGame = ({ activeGame, start, setStart }) => {
         aMod.push(temp)
     })
 
+    const biasMod = []
+    bias.forEach((item) => {
+        item = parseInt(parseFloat(item) * 1_000_000)
+        // xMod.push(BigInt(item))
+        biasMod.push(item)
+      })
+
     const out = {
       A:aMod,
-      x:xMod
+      x:xMod,
+      bias:biasMod,
     }
     console.log(out)
 
 
-    return { aMod, xMod }
-  } 
+    return { aMod, xMod, biasMod }
+  }
+  
+  const argSort2 = (arr) => {
+
+    const dsu = (arr1, arr2) => arr1
+    .map((item, index) => [arr2[index], item]) // add the args to sort by
+    .sort(([arg1], [arg2]) => arg2 - arg1) // sort by the args
+    .map(([, item]) => item); // extract the sorted items
+  
+  const index = [0,1,2,3,4,5,6,7,8];
+  
+  const result = dsu(index, arr);
+  return result
+  }
 
   const makeMove = async() => {
     if (agent.model) {
         const inputTensor = getBoardAsTensor()
         
-        // Temp 
-        const model = await loadLayersModel('model.json');
-        let preds = model.predict(inputTensor);
-        // let preds = agent.model.predict(inputTensor);
-       
+        let preds = agent.model.predict(inputTensor);
+
+        console.log(preds.arraySync())
+
         preds = preds.reshape([-1])
 
-        const argPreds = argSort(preds.arraySync())
+        const tempPreds = []        
+        preds.arraySync().forEach((item) => {
+          const tempItem = item + 100
+          tempPreds.push(tempItem)
+        })
+        
+
+        console.log(tempPreds)
+        const argPreds = argSort2(tempPreds)
+        console.log(argPreds)
 
         let choice
         for (let i = 0; i < argPreds.length; i++) {
@@ -274,12 +303,21 @@ const  BattleGame = ({ activeGame, start, setStart }) => {
             }
         }
 
-        const { aMod, xMod } = await convertModelForSnark()
-        const result = await generateAndVerifyProof(aMod, xMod)
+        const { aMod, xMod, biasMod } = await convertModelForSnark()
+        const result = await generateAndVerifyProof(aMod, xMod, biasMod)
         const { _proof, _input }  = convertProof(result)
 
         console.log(_proof)
         console.log(_input)
+
+        const test = []
+        _input.forEach((element) => {
+          const temp = parseInt(element)
+          test.push(temp)
+        })
+        console.log(test)
+        const check = argSort2(test)
+        console.log(check)
  
         const { ethereum } = window
         const provider = new ethers.providers.Web3Provider(ethereum);
